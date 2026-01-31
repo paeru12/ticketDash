@@ -1,64 +1,102 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import api from "@/lib/axios";
 
 const AuthContext = createContext(null);
 
-// Mock credentials for different roles
-const MOCK_USERS = {
-  SUPERADMIN: { email: 'superadmin@tiketku.id', password: 'superadmin' },
-  EVENT_ADMIN: { email: 'eventadmin@tiketku.id', password: 'eventadmin' },
-};
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const isFetchingRef = useRef(false);
+
+  /**
+   * =========================
+   * FETCH CURRENT USER (/me)
+   * =========================
+   */
+  const fetchMe = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
-      const raw = localStorage.getItem('tiketku_auth');
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      return null;
+      const res = await api.get("/auth/admin/me");
+      res.data.user.role = res.data.user.roles?.[0];
+      setUser(res.data.user);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
     }
-  });
+  };
 
+  /**
+   * =========================
+   * INITIAL LOAD
+   * =========================
+   */
+  useEffect(() => {
+    fetchMe();
+    const onLogout = () => setUser(null);
+    window.addEventListener("auth:logout", onLogout);
+    return () => {
+      window.removeEventListener("auth:logout", onLogout);
+    };
+  }, []);
+
+  /**
+   * =========================
+   * LOGIN
+   * =========================
+   */
   const login = async (email, password) => {
-    // Basic validation
-    if (!email || !password) {
-      throw new Error('Email dan password wajib diisi');
-    }
-
-    // Check SUPERADMIN
-    if (email.toLowerCase() === MOCK_USERS.SUPERADMIN.email && password === MOCK_USERS.SUPERADMIN.password) {
-      const u = { 
-        email: MOCK_USERS.SUPERADMIN.email, 
-        role: 'SUPERADMIN',
-        name: 'Super Admin'
-      };
-      setUser(u);
-      try { localStorage.setItem('tiketku_auth', JSON.stringify(u)); } catch (e) {}
-      return u;
-    }
-
-    // Check EVENT_ADMIN
-    if (email.toLowerCase() === MOCK_USERS.EVENT_ADMIN.email && password === MOCK_USERS.EVENT_ADMIN.password) {
-      const u = { 
-        email: MOCK_USERS.EVENT_ADMIN.email, 
-        role: 'EVENT_ADMIN',
-        name: 'Event Admin'
-      };
-      setUser(u);
-      try { localStorage.setItem('tiketku_auth', JSON.stringify(u)); } catch (e) {}
-      return u;
-    }
-
-    throw new Error('Email atau password salah');
+    const res = await api.post("/auth/admin/login", {
+      email,
+      password,
+    });
+    // backend sudah set cookie
+    setUser({
+      ...res.data.user,
+      role: res.data.user.roles?.[0], // ⬅️ NORMALISASI
+    });
+    return res.data.user;
   };
 
-  const logout = () => {
+  /**
+   * =========================
+   * LOGOUT (SILENT)
+   * =========================
+   */
+  const logout = async () => {
+    try {
+      await api.post("/auth/admin/logout");
+    } catch {
+      // ignore error
+    }
+
     setUser(null);
-    try { localStorage.removeItem('tiketku_auth'); } catch (e) {}
-    // ensure no session-specific keys remain (we no longer use sessionStorage)
+
+    // broadcast ke tab lain
+    window.dispatchEvent(new Event("auth:logout"));
   };
+
+  /**
+   * =========================
+   * DERIVED STATE
+   * =========================
+   */
+  const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        login,
+        logout,
+        loading,
+        refetchMe: fetchMe,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -66,8 +104,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
   return ctx;
 }
-
-export default AuthContext;

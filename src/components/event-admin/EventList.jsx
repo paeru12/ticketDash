@@ -1,98 +1,120 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Ellipsis,
-  SquarePen,
-  CalendarDays,
-  TicketSlash,
-  BookOpen,
-  Trash,
-} from 'lucide-react';
+import { Ellipsis, BookOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useNavigate } from "react-router-dom";
-import { confirmAlert, successAlert } from "@/lib/alert";
+} from "@/components/ui/dropdown-menu";
+import { getEvents, deleteEvents } from "@/lib/eventApi";
 import EventActionDialog from "./EventActionDialog";
-
-
-const initial = Array.from({ length: 12 }).map((_, i) => ({
-  id: i + 1,
-  name: `Event ${i + 1}`,
-  venue: `Venue ${((i % 3) + 1)}`,
-  start: `2025-12-${(i % 28) + 1}`,
-  end: `2026-01-${(i % 28) + 1}`,
-  status: i % 2 === 0 ? "published" : "draft",
-  totalTickets: 500 + i * 10,
-  sold: Math.floor(Math.random() * 500),
-}));
-
+import { formatTanggalIndo, formatEventDateTime } from "@/utils/date";
+import { confirmAlert, successAlert, errorAlert } from "@/lib/alert";
 export default function EventList({ onAdd }) {
-  const [data] = useState(initial);
+  const [data, setData] = useState([]);
+  const [meta, setMeta] = useState({
+    page: 1,
+    perPage: 6,
+    totalItems: 0,
+    totalPages: 1,
+  });
+
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(6);
   const [search, setSearch] = useState("");
-
-  const navigate = useNavigate();
-
-  const filtered = useMemo(() => {
-    return data.filter((d) =>
-      [d.name, d.venue].join(" ").toLowerCase().includes(search.toLowerCase())
-    );
-  }, [data, search]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageData = filtered.slice((page - 1) * perPage, page * perPage);
-
-  const normalizeStatus = (s) => (s === "published" ? "Active" : "Inactive");
+  const [loading, setLoading] = useState(true);
 
   const [dialog, setDialog] = useState({
     open: false,
-    mode: null, // 'detail' | 'update-event' | 'update-ticket'
+    mode: null,
     data: null,
   });
 
-  function openDialog(mode, row) {
-    setDialog({
-      open: true,
-      mode,
-      data: row,
-    });
+  function openDialog(mode, data) {
+    setDialog({ open: true, mode, data });
   }
 
   function closeDialog() {
     setDialog({ open: false, mode: null, data: null });
   }
 
+  function handleSuccess() {
+    closeDialog();
+    fetchEvents(); // 🔁 AUTO REFRESH
+  }
 
-  async function handleDelete(row) {
+  /* =========================
+     FETCH DATA
+  ========================= */
+  useEffect(() => {
+    fetchEvents();
+  }, [page, perPage, search]);
+
+  async function fetchEvents() {
+    try {
+      setLoading(true);
+      const res = await getEvents({ page, perPage, search });
+      console.log(res);
+      const mediaBase = res.media;
+      setData(
+        res.events.map((item) => ({
+          ...item, // ⬅️ SIMPAN SEMUA DATA ASLI
+          // tambahan khusus UI tabel
+          tanggalPelaksanaan: `${formatEventDateTime({
+            startDate: item.date_start,
+            startTime: item.time_start,
+            endDate: item.date_end,
+            endTime: item.time_end,
+            zone: item.timezone,
+          })}`,
+          author: item.users.full_name,
+          venue: item.location,
+          start: formatTanggalIndo(item.date_start),
+          end: formatTanggalIndo(item.date_end),
+          image: item.image
+            ? `${mediaBase}${item.image.replace(/^\/+/, "")}`
+            : "",
+          layout_venue: item.layout_venue
+            ? `${mediaBase}${item.layout_venue.replace(/^\/+/, "")}`
+            : "",
+        }))
+      );
+      setMeta(res.meta);
+    } catch (err) {
+      console.error("Fetch events error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteEvent(event) {
     const res = await confirmAlert({
       title: "Hapus Event?",
-      text: `Event "${row.name}" akan dihapus permanen.`,
+      text: `Event "${event.name}" akan dihapus permanen.`,
       confirmText: "Hapus",
-      cancelText: "Batal",
-      icon: "error",
+      confirmColor: "#ef4444",
     });
 
     if (!res.isConfirmed) return;
 
-    // TODO: panggil API delete
-    // await deleteEvent(row.id);
-
-    await successAlert(
-      "Event dihapus",
-      "Event berhasil dihapus."
-    );
+    try {
+      await deleteEvents(event.id);
+      await successAlert("Berhasil", "Event berhasil dihapus");
+      fetchEvents(); // 🔁 refresh list
+    } catch (e) {
+      errorAlert(
+        "Gagal",
+        e.response?.data?.message || e.message
+      );
+    }
   }
 
 
-
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <div>
       {/* Header */}
@@ -101,10 +123,9 @@ export default function EventList({ onAdd }) {
         <Button onClick={onAdd}>+ Add Event</Button>
       </div>
 
-      {/* Card */}
-      <div className="rounded-lg bg-white shadow-sm p-4">
-        {/* Top controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        {/* Search & PerPage */}
+        <div className="flex justify-between mb-4">
           <Input
             placeholder="Search events..."
             value={search}
@@ -112,7 +133,7 @@ export default function EventList({ onAdd }) {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="sm:w-1/2"
+            className="max-w-sm"
           />
 
           <select
@@ -129,132 +150,166 @@ export default function EventList({ onAdd }) {
           </select>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto pb-44 -mb-44">
-          <table className="w-full text-sm divide-y">
-            <thead>
-              <tr className="text-left text-xs text-slate-500">
-                <th className="px-3 py-2">Nama Event</th>
-                <th className="px-3 py-2">Venue</th>
-                <th className="px-3 py-2">Tanggal Mulai</th>
-                <th className="px-3 py-2">Tanggal Selesai</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2 text-right">Action</th>
-              </tr>
-            </thead>
+        {/* Info */}
+        <div className="text-sm text-slate-600 mb-2">
+          Showing{" "}
+          <strong>{(meta.page - 1) * meta.perPage + 1}</strong> –{" "}
+          <strong>
+            {Math.min(meta.page * meta.perPage, meta.totalItems)}
+          </strong>{" "}
+          of <strong>{meta.totalItems}</strong>
+        </div>
 
-            <tbody className="divide-y">
-              {pageData.map((row) => (
+        {/* Table */}
+        <table className="w-full text-sm divide-y">
+          <thead>
+            <tr className="text-left text-xs text-slate-500">
+              <th className="px-3 py-2">No</th>
+              <th className="px-3 py-2">Gambar</th>
+              <th className="px-3 py-2">Nama Event</th>
+              <th className="px-3 py-2">Venue</th>
+              <th className="px-3 py-2">Tanggal Pelaksanaan</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Author</th>
+              <th className="px-3 py-2 text-right">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="text-center py-6">
+                  Loading...
+                </td>
+              </tr>
+            ) : data.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-6">
+                  Data kosong
+                </td>
+              </tr>
+            ) : (
+              data.map((row, idx) => (
                 <tr key={row.id} className="hover:bg-slate-50">
-                  <td className="px-3 py-3">{row.name}</td>
-                  <td className="px-3 py-3">{row.venue}</td>
-                  <td className="px-3 py-3">{row.start}</td>
-                  <td className="px-3 py-3">{row.end}</td>
+                  <td className="px-3 py-3 font-semibold">
+                    {(meta.page - 1) * meta.perPage + idx + 1}.
+                  </td>
+
                   <td className="px-3 py-3">
-                    {normalizeStatus(row.status) === "Active" ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
-                        Active
-                      </span>
+                    {row.image ? (
+                      <img
+                        src={row.image}
+                        alt={row.name}
+                        className="h-12 w-12 object-cover rounded"
+                      />
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
-                        Inactive
+                      <span className="text-xs text-slate-400">
+                        No Image
                       </span>
                     )}
                   </td>
+
+                  <td className="px-3 py-3 font-medium capitalize">{row.name}</td>
+                  <td className="px-3 py-3 capitalize">{row.venue}</td>
+                  <td className="px-3 py-3">{row.tanggalPelaksanaan}</td>
+
+                  <td className="px-3 py-3">
+                    <span
+                      className={`px-2 py-0.5 text-xs rounded
+                        ${row.status === "draft"
+                          ? "bg-gray-100 text-gray-700"
+                          : row.status === "published"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }
+                        `}
+                    >
+                      {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 capitalize">{row.author}</td>
+
+
                   <td className="px-3 py-3 text-right">
-                      <div className="relative inline-block overflow-visible h-0">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="p-1 hover:bg-slate-100 rounded-full outline-none">
-                              <Ellipsis size={16} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          
-                          <DropdownMenuContent 
-                            align="end" 
-                            className="w-48 bg-white border shadow-xl"
-                            style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: '100%',
-                              zIndex: 9999
-                            }}
-                          >
-                            <DropdownMenuItem onClick={()=> openDialog("detail",row)} className="gap-2 p-2 cursor-pointer hover:bg-slate-50 text-left">
-                              <BookOpen size={16} className="text-blue-600"/>
-                              <span>Detail Event</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={()=> openDialog("update-event",row)} className="gap-2 p-2 cursor-pointer hover:bg-slate-50 text-left">
-                              <CalendarDays size={16} className="text-amber-500"/>
-                              <span>Update Event</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={()=> openDialog("update-ticket",row)} className="gap-2 p-2 cursor-pointer hover:bg-slate-50 text-left">
-                              <TicketSlash size={16} className="text-emerald-500"/>
-                              <span>Update Ticket</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={()=> handleDelete(row)} className="gap-2 p-2 cursor-pointer text-red-600 hover:bg-red-50 text-left">
-                              <Trash size={16} />
-                              <span>Delete Event</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 rounded hover:bg-slate-100">
+                          <Ellipsis size={16} />
+                        </button>
+                      </DropdownMenuTrigger>
+
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openDialog("detail", row)}>
+                          Detail Event
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem onClick={() => openDialog("update-event", row)}>
+                          Edit Event
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem onClick={() => openDialog("update-ticket", row)}>
+                          Edit Ticket
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteEvent(row)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          Hapus Event
+                        </DropdownMenuItem>
+
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between mt-4 text-sm text-slate-500">
-          <span>
-            Showing {(page - 1) * perPage + 1} –{" "}
-            {Math.min(page * perPage, filtered.length)} of {filtered.length}
-          </span>
-
-          <div className="flex gap-2">
-            <button
-              disabled={page === 1}
+        {/* Pagination – SAMA DENGAN KATEGORI */}
+        {meta.totalPages > 1 && (
+          <div className="flex justify-end mt-4 gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={meta.page === 1}
               onClick={() => setPage((p) => p - 1)}
-              className="p-2 rounded hover:bg-slate-100 disabled:opacity-40"
             >
-              <svg className="w-4 h-4 text-slate-600" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M12.293 16.293L7.586 11.586 12.293 6.879 11.293 5.879 5.879 11.293 11.293 16.707z" />
-              </svg>
-            </button>
+              ‹
+            </Button>
 
-            <div className="hidden sm:flex items-center gap-1">
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  className={`px-2 py-1 rounded text-sm ${page === i + 1 ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
-                  onClick={() => setPage(i + 1)}
+            {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map(
+              (p) => (
+                <Button
+                  key={p}
+                  size="sm"
+                  variant={p === meta.page ? "default" : "outline"}
+                  onClick={() => setPage(p)}
                 >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
+                  {p}
+                </Button>
+              )
+            )}
 
-            <button
-              disabled={page === totalPages}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={meta.page === meta.totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="p-2 rounded hover:bg-slate-100 disabled:opacity-40"
             >
-              <svg className="w-4 h-4 text-slate-600" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M7.707 3.707L12.414 8.414 7.707 13.121 8.707 14.121 14.121 8.707 8.707 3.293z" />
-              </svg>
-            </button>
+              ›
+            </Button>
           </div>
-        </div>
+        )}
       </div>
-          <EventActionDialog
-            open={dialog.open}
-            mode={dialog.mode}
-            data={dialog.data}
-            onClose={closeDialog}
-          />
+
+      <EventActionDialog
+        open={dialog.open}
+        mode={dialog.mode}
+        data={dialog.data}
+        onClose={closeDialog}
+        onSuccess={handleSuccess}
+      />
     </div>
   );
 }

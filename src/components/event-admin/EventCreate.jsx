@@ -1,21 +1,14 @@
 import { useState } from "react";
 import EventStepOne from "./EventStepOne";
 import EventStepTwo from "./EventStepTwo";
-import EventStepThree from "./EventStepThree";
-
+import { createEvents } from "@/lib/eventApi";
+import { successAlert, errorAlert } from "@/lib/alert";
 export default function EventCreate({ onCancel }) {
   const [step, setStep] = useState(1);
 
   /* ================= STATE UTAMA ================= */
   const [eventData, setEventData] = useState({
-    // STEP 1 – Pengadaan
-    // procurement: {
-    //   name: "",
-    //   vendor: "",
-    //   note: "",
-    // },
-
-    // STEP 2 – Event
+    // STEP 1 – Event
     event: {
       name: "",
       category: "",
@@ -25,6 +18,7 @@ export default function EventCreate({ onCancel }) {
       flyer: null,
       layout: null,
       description: "",
+      status: "",
     },
   });
 
@@ -41,36 +35,71 @@ export default function EventCreate({ onCancel }) {
 
   const [activeTicketId, setActiveTicketId] = useState(tickets[0].id);
 
-  /* ================= SUBMIT ================= */
-  function handleFinish() {
-    const payload = {
-      procurement: eventData.procurement,
-      event: eventData.event,
-      tickets,
-    };
+  async function handleFinish() {
+    try {
+      const e = eventData.event;
+      const formData = new FormData();
 
-    console.log("FINAL PAYLOAD:", payload);
-    onCancel(); // balik ke EventList
+      // EVENT
+      formData.append("creator_id", e.creatorId);
+      formData.append("region_id", e.region);
+      formData.append("kategori_id", e.category);
+      formData.append("name", e.name);
+      formData.append("deskripsi", e.description);
+      formData.append("sk", e.terms);
+      formData.append("status", e.status);
+
+      formData.append("date_start", e.startDate);
+      formData.append("date_end", e.endDate);
+      formData.append("time_start", e.startTime);
+      formData.append("time_end", e.endTime);
+      formData.append("timezone", e.timezone);
+
+      formData.append("location", e.location);
+      formData.append("map", e.mapUrl || "");
+      formData.append("keywords", e.keywords.join(","));
+
+      // FILE (WAJIB FILE)
+      if (e.flyer instanceof File) {
+        formData.append("image", e.flyer);
+      }
+
+      if (e.layout instanceof File) {
+        formData.append("layout_venue", e.layout);
+      }
+
+      // TICKETS
+      const ticketPayload = tickets.map((t) => ({
+        name: t.name,
+        deskripsi: t.description,
+        price: Number(t.price),
+        total_stock: Number(t.qty),
+        max_per_order: Number(t.maxOrder),
+        deliver_ticket: t.deliverDate,
+        date_start: t.startDate,
+        date_end: t.endDate,
+        time_start: t.startTime,
+        time_end: t.endTime,
+      }));
+
+      formData.append("ticket_types", JSON.stringify(ticketPayload));
+
+      await createEvents(formData);
+      await successAlert("Berhasil", "Event berhasil dibuat");
+      onCancel();
+
+    } catch (err) {
+      errorAlert("Gagal", err.response?.data?.message || err.message);
+      // console.error(err);
+    }
   }
+
 
   return (
     <div className="bg-white p-6 rounded-lg">
-      {/* {step === 1 && (
-        <EventStepOne
-          data={eventData.procurement}
-          onChange={(procurement) =>
-            setEventData((prev) => ({
-              ...prev,
-              procurement,
-            }))
-          }
-          onNext={() => setStep(2)}
-          onCancel={onCancel}
-        />
-      )} */}
 
       {step === 1 && (
-        <EventStepTwo
+        <EventStepOne
           data={eventData.event}
           onChange={(event) =>
             setEventData((prev) => ({
@@ -84,7 +113,7 @@ export default function EventCreate({ onCancel }) {
       )}
 
       {step === 2 && (
-        <EventStepThree
+        <EventStepTwo
           tickets={tickets}
           setTickets={setTickets}
           activeTicketId={activeTicketId}
@@ -96,3 +125,4 @@ export default function EventCreate({ onCancel }) {
     </div>
   );
 }
+
