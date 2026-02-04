@@ -1,300 +1,404 @@
-import React, { useState } from 'react';
-import { PageHeader } from '@/components/common/PageHeader';
-import { DataTable } from '@/components/common/DataTable';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Upload } from 'lucide-react';
-import { confirmAlert, successAlert, errorAlert } from "@/lib/alert"; // Sesuaikan path alert Anda
+import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
+import RichTextEditor from "@/components/common/RichTextEditor";
+import { Edit, Trash2 } from "lucide-react";
+import { confirmAlert, successAlert, errorAlert } from "@/lib/alert";
+import { renderHtml } from "@/utils/text";
 
-// Mock banner data
-const mockBanners = [
-  {
-    id: '1',
-    title: 'New Year Event 2025',
-    imageUrl: 'https://pin.it/5XOKzI2HW',
-    link: 'https://example.com',
-    isActive: true,
-    createdAt: '2024-12-01T10:00:00Z',
-  },
-];
+/* ========== API SERVICE ========== */
+import {
+  getBanners,
+  createBanner,
+  updateBanner,
+  deleteBanner,
+} from "@/lib/bannerApi";
 
-export default function Banner() {
-  const [banners, setBanners] = useState(mockBanners);
+export default function BannerPage() {
+  /* LIST STATE */
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  
-  // Form States
-  const [formData, setFormData] = useState({
-    title: '',
-    link: '',
-    isActive: 'true', // string untuk radio button logic
-    imageUrl: '',
+
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(6);
+  const [search, setSearch] = useState("");
+
+  const [meta, setMeta] = useState({
+    page: 1,
+    perPage: 6,
+    totalItems: 0,
+    totalPages: 1,
   });
-  const [imagePreview, setImagePreview] = useState(null);
+
+  /* FORM STATE */
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  const [name, setName] = useState("");
+  const [link, setLink] = useState("");
+  const [isActive, setIsActive] = useState("true");
+
+  const [imgFile, setImgFile] = useState(null);
+  const [imgPreview, setImgPreview] = useState("");
   const [errors, setErrors] = useState({});
 
+  /* FETCH DATA */
+  useEffect(() => {
+    fetchData();
+  }, [page, perPage, search]);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
+
+      const res = await getBanners({ page, perPage, search });
+      const mediaBase = res.data.media;
+
+      setData(
+        res.data.data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          link: item.link,
+          isActive: item.is_active,
+          author: item.author?.full_name,
+          image: item.image_banner
+            ? `${mediaBase}${item.image_banner.replace(/^\/+/, "")}`
+            : "",
+        }))
+      );
+
+      setMeta(res.data.meta);
+    } catch (err) {
+      console.error("Fetch banner error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* IMAGE HANDLER */
   const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData(prev => ({ ...prev, imageUrl: reader.result }));
-        if (errors.imageUrl) setErrors(prev => ({ ...prev, imageUrl: null }));
-      };
-      reader.readAsDataURL(file);
+      setImgFile(file);
+      setImgPreview(URL.createObjectURL(file));
     }
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    setBanners(banners.map(b => 
-      b.id === id ? { ...b, isActive: newStatus === 'active' } : b
-    ));
-    successAlert('Berhasil', 'Status banner berhasil diperbarui');
+  /* EDIT */
+  const handleEdit = (row) => {
+    setEditingId(row.id);
+    setName(row.name);
+    setLink(row.link || "");
+    setIsActive(row.isActive ? "true" : "false");
+    setImgPreview(row.image);
+    setImgFile(null);
+    setOpen(true);
   };
 
-  const handleSubmit = async (e) => {
+  /* DELETE */
+  async function handleDelete(row) {
+    const res = await confirmAlert({
+      title: "Hapus Banner?",
+      text: `Banner "${row.name}" akan dihapus permanen.`,
+      confirmText: "Hapus",
+    });
+
+    if (!res.isConfirmed) return;
+
+    try {
+      await deleteBanner(row.id);
+      await successAlert("Berhasil", "Banner berhasil dihapus.");
+      fetchData();
+    } catch (err) {
+      errorAlert("Gagal", err.response?.data?.message || err.message);
+    }
+  }
+
+  /* RESET FORM */
+  const closeDialog = () => {
+    setOpen(false);
+    setEditingId(null);
+    setName("");
+    setLink("");
+    setIsActive("true");
+    setImgFile(null);
+    setImgPreview("");
+    setErrors({});
+  };
+
+  /* SUBMIT */
+  async function handleSubmit(e) {
     e.preventDefault();
+
     const newErrors = {};
+    if (!name.trim()) newErrors.name = "Nama banner wajib diisi.";
+    if (!editingId && !imgFile) newErrors.img = "Gambar wajib diisi.";
 
-    if (!formData.title.trim()) newErrors.title = 'Nama banner wajib diisi';
-    if (!formData.imageUrl) newErrors.imageUrl = 'Gambar wajib diunggah';
-
-    if (Object.keys(newErrors).length > 0) {
+    if (Object.keys(newErrors).length) {
       setErrors(newErrors);
       return;
     }
 
-    setLoading(true);
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("link", link);
+    formData.append("is_active", isActive === "true");
+    if (imgFile) formData.append("image_banner", imgFile);
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const newBanner = {
-        id: String(Date.now()),
-        title: formData.title,
-        link: formData.link,
-        imageUrl: formData.imageUrl,
-        isActive: formData.isActive === 'true',
-        createdAt: new Date().toISOString(),
-      };
-      
-      setBanners([newBanner, ...banners]);
-      await successAlert('Berhasil', 'Banner berhasil ditambahkan');
-      
-      // KIRIM PARAMETER TRUE DISINI
-      handleCloseDialog(true); 
+      if (editingId) {
+        await updateBanner(editingId, formData);
+        await successAlert("Berhasil", "Banner berhasil diperbarui.");
+      } else {
+        await createBanner(formData);
+        await successAlert("Berhasil", "Banner berhasil ditambahkan.");
+      }
 
-    } catch (error) {
-      errorAlert('Gagal', 'Gagal menambahkan banner');
-    } finally {
-      setLoading(false);
+      closeDialog();
+      fetchData();
+    } catch (err) {
+      errorAlert("Gagal", err.response?.data?.message || err.message);
     }
-  };
-
-  const handleDelete = async (id) => {
-    const res = await confirmAlert({
-      title: 'Hapus Banner?',
-      text: 'Apakah Anda yakin ingin menghapus banner ini?',
-      confirmText: 'Ya, Hapus'
-    });
-
-    if (res.isConfirmed) {
-      setBanners(banners.filter(b => b.id !== id));
-      successAlert('Berhasil', 'Banner berhasil dihapus');
-    }
-  };
-
-  const handleCloseDialog = async (isSuccess = false) => {
-    // Jika isSuccess true, langsung tutup. 
-    // Jika false (diklik manual), baru cek apakah perlu konfirmasi.
-    if (!isSuccess && (formData.title || formData.imageUrl)) {
-      const res = await confirmAlert({
-        title: 'Batal?',
-        text: 'Data yang Anda masukkan akan hilang.',
-        confirmText: 'Ya, Batal'
-      });
-      if (!res.isConfirmed) return;
-    }
-    
-    // Reset State
-    setUploadDialogOpen(false);
-    setFormData({ title: '', link: '', isActive: 'true', imageUrl: '' });
-    setImagePreview(null);
-    setErrors({});
-  };
-
-  const columns = [
-    {
-      key: 'title',
-      label: 'Title',
-      render: (row) => <div className="font-medium">{row.title}</div>,
-    },
-    {
-      key: 'imageUrl',
-      label: 'Image',
-      render: (row) => <img src={row.imageUrl} alt={row.title} className="h-12 w-20 object-cover rounded" />,
-    },
-    {
-      key: 'link',
-      label: 'Link',
-      render: (row) => <span className="text-sm text-muted-foreground">{row.link || '-'}</span>,
-    },
-    {
-      key: 'isActive',
-      label: 'Status',
-      render: (row) => {
-        const isActive = row.isActive;
-        return (
-          <select
-            value={isActive ? 'active' : 'inactive'}
-            onChange={(e) => handleStatusChange(row.id, e.target.value)}
-            className={`text-xs font-bold border rounded-full px-3 py-1 focus:outline-none transition-colors cursor-pointer
-              ${isActive 
-                ? 'bg-green-100 text-green-700 border-green-300' 
-                : 'bg-gray-100 text-gray-600 border-gray-300'
-              }`}
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        );
-      },
-    },
-    {
-      key: 'action',
-      label: 'Action',
-      render: (row) => (
-        <Button variant="ghost" size="sm" onClick={() => handleDelete(row.id)}>
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      ),
-    },
-  ];
+  }
 
   return (
     <div>
-      <PageHeader
-        title="Banner Management"
-        description="Manage platform banners"
-        action={
-          <Button onClick={() => setUploadDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Upload Banner
-          </Button>
-        }
-      />
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Banner</h2>
+        <Button onClick={() => setOpen(true)}>+ Add Banner</Button>
+      </div>
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <DataTable columns={columns} data={banners} loading={false} />
-      )}
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        {/* Search */}
+        <div className="flex justify-between mb-4">
+          <Input
+            placeholder="Search banner..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-sm"
+          />
 
-      <Dialog open={uploadDialogOpen} onOpenChange={(val) => !val ? handleCloseDialog() : setUploadDialogOpen(true)}>
+          <select
+            value={perPage}
+            onChange={(e) => {
+              setPerPage(Number(e.target.value));
+              setPage(1);
+            }}
+            className="border rounded px-2 py-1 text-sm"
+          >
+            <option value={6}>6 / page</option>
+            <option value={10}>10 / page</option>
+            <option value={25}>25 / page</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        <table className="w-full text-sm divide-y">
+          <thead>
+            <tr className="text-left text-xs text-slate-500">
+              <th className="px-3 py-2">No</th>
+              <th className="px-3 py-2">Gambar</th>
+              <th className="px-3 py-2">Nama</th>
+              <th className="px-3 py-2">Link</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Author</th>
+              <th className="px-3 py-2 text-right">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="py-6 text-center">
+                  Loading...
+                </td>
+              </tr>
+            ) : data.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-6 text-center">
+                  Data kosong
+                </td>
+              </tr>
+            ) : (
+              data.map((row, idx) => (
+                <tr key={row.id} className="hover:bg-slate-50">
+                  <td className="px-3 py-3 font-semibold">
+                    {(meta.page - 1) * meta.perPage + idx + 1}.
+                  </td>
+
+                  <td className="px-3 py-3">
+                    {row.image ? (
+                      <img
+                        src={row.image}
+                        alt={row.name}
+                        className="h-12 w-20 object-cover rounded"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">No Image</span>
+                    )}
+                  </td>
+
+                  <td className="px-3 py-3 font-medium capitalize">
+                    {row.name}
+                  </td>
+
+                  <td className="px-3 py-3">{row.link || "-"}</td>
+
+                  <td className="px-3 py-3">
+                    {row.isActive ? (
+                      <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">
+                        Inactive
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="px-3 py-3 capitalize">{row.author}</td>
+
+                  <td className="px-3 py-3 text-right space-x-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEdit(row)}
+                      className="text-blue-600"
+                    >
+                      <Edit size={16} />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(row)}
+                      className="text-red-600"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination */}
+        {meta.totalPages > 1 && (
+          <div className="flex justify-end mt-4 gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              ‹
+            </Button>
+
+            {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map(
+              (p) => (
+                <Button
+                  key={p}
+                  size="sm"
+                  variant={p === page ? "default" : "outline"}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </Button>
+              )
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              ›
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL */}
+      <Dialog open={open} onOpenChange={(v) => !v && closeDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload Banner</DialogTitle>
-            <DialogDescription>Tambahkan banner baru untuk ditampilkan di platform</DialogDescription>
+            <DialogTitle>
+              {editingId ? "Edit Banner" : "Tambah Banner"}
+            </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name Input */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Nama Banner *</label>
-              <Input
-                value={formData.title}
-                onChange={(e) => {
-                  setFormData({ ...formData, title: e.target.value });
-                  if (errors.title) setErrors(prev => ({ ...prev, title: null }));
-                }}
-                placeholder="Masukkan nama banner"
-                className={errors.title ? "border-red-500" : ""}
+            <Input
+              placeholder="Nama banner"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            {errors.name && (
+              <p className="text-xs text-red-500">{errors.name}</p>
+            )}
+
+            <Input
+              placeholder="Link (opsional)"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+            />
+
+            <div className={editingId ? "flex gap-4" : "hidden"}>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="true"
+                  checked={isActive === "true"}
+                  onChange={(e) => setIsActive(e.target.value)}
+                />
+                <span>Active</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="false"
+                  checked={isActive === "false"}
+                  onChange={(e) => setIsActive(e.target.value)}
+                />
+                <span>Inactive</span>
+              </label>
+            </div>
+
+            <Input type="file" accept="image/*" onChange={handleImageChange} />
+
+            {errors.img && (
+              <p className="text-xs text-red-500">{errors.img}</p>
+            )}
+
+            {imgPreview && (
+              <img
+                src={imgPreview}
+                className="h-32 object-cover rounded"
+                alt="Preview"
               />
-              {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
-            </div>
+            )}
 
-            {/* Link Input (Optional) */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Link (Opsional)</label>
-              <Input
-                value={formData.link}
-                onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                placeholder="https://example.com"
-              />
-            </div>
-
-            {/* Is Active Radio */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Status *</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="isActive"
-                    value="true"
-                    checked={formData.isActive === 'true'}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Active</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="isActive"
-                    value="false"
-                    checked={formData.isActive === 'false'}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Inactive</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Upload Image */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Upload Image *</label>
-              <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${errors.imageUrl ? "border-red-500 bg-red-50" : "border-input"}`}>
-                {imagePreview ? (
-                  <div className="space-y-2">
-                    <img src={imagePreview} alt="Preview" className="h-32 w-full object-cover rounded mx-auto" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImagePreview(null);
-                        setFormData(prev => ({ ...prev, imageUrl: '' }));
-                      }}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Ubah gambar
-                    </button>
-                  </div>
-                ) : (
-                  <label className="cursor-pointer">
-                    <Upload className={`h-8 w-8 mx-auto mb-2 ${errors.imageUrl ? "text-red-400" : "text-muted-foreground"}`} />
-                    <p className="text-sm font-medium">Klik untuk upload gambar</p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG (maks 5MB)</p>
-                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                  </label>
-                )}
-              </div>
-              {errors.imageUrl && <p className="text-xs text-red-500 mt-1">{errors.imageUrl}</p>}
-            </div>
-
-            <div className="flex gap-3 justify-between pt-4">
-              <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={loading}>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={closeDialog}>
                 Batal
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Uploading...' : 'Upload'}
+
+              <Button type="submit">
+                {editingId ? "Update" : "Simpan"}
               </Button>
             </div>
           </form>

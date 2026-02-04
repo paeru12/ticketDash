@@ -1,18 +1,22 @@
 import { Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from '@/contexts/AuthContext';
-import RequireAuth from '@/components/common/RequireAuth';
-import RequireRole from '@/components/common/RequireRole';
-import RoleRenderer from '@/components/common/RoleRenderer';
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import RequireAuth from "@/components/common/RequireAuth";
+import RequireRole from "@/components/common/RequireRole";
+import RoleRenderer from "@/components/common/RoleRenderer";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
+
+// SUPERADMIN
 import Dashboard from "./pages/superadmin/Dashboard";
 import Events from "./pages/superadmin/Events";
 import EventAdmins from "./pages/superadmin/EventAdmins";
 import Users from "./pages/superadmin/Users";
 import Settings from "./pages/superadmin/Settings";
 import Banner from "./pages/superadmin/Banner";
+
+// EVENT ADMIN
 import EventAdminDashboard from "./pages/eventadmin/Dashboard";
 import EventAdminEvents from "./pages/eventadmin/Events";
 import Categories from "./pages/eventadmin/Categories";
@@ -36,16 +40,20 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-        <TooltipProvider>
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Root: show login UI at `/` without performing an automatic redirect */}
-              <Route path="/" element={<Login />} />
-              
-              {/* Protected routes without role prefixes; role enforced per-route */}
-              <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-                {/* Dashboard - shared path */}
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Root & Login */}
+            <Route path="/" element={<Login />} />
+            <Route path="/login" element={<Login />} />
+
+            {/* =========================
+                PROTECTED AREA
+            ========================= */}
+            <Route element={<RequireAuth />}>
+              <Route element={<AppLayout />}>
+                {/* Dashboard (shared path) */}
                 <Route
                   path="/dashboard"
                   element={
@@ -59,7 +67,7 @@ const App = () => (
                   }
                 />
 
-                {/* Events - shared path, role-specific content */}
+                {/* Events (shared path) */}
                 <Route
                   path="/events"
                   element={
@@ -71,10 +79,6 @@ const App = () => (
                     />
                   }
                 />
-                  <Route path="/categories" element={<RequireRole allowed={["EVENT_ADMIN"]}><Categories /></RequireRole>} />
-                  <Route path="/regions" element={<RequireRole allowed={["EVENT_ADMIN"]}><Regions /></RequireRole>} />
-                  <Route path="/ticket-types" element={<RequireRole allowed={["EVENT_ADMIN"]}><TicketTypes /></RequireRole>} />
-                  <Route path="/reports" element={<RequireRole allowed={["EVENT_ADMIN"]}><Reports /></RequireRole>} />
 
                 {/* Superadmin-only pages */}
                 <Route path="/event-admins" element={<RequireRole allowed={["SUPERADMIN"]}><EventAdmins /></RequireRole>} />
@@ -112,6 +116,7 @@ const App = () => (
                   }
                 />
               </Route>
+            </Route>
 
               
 

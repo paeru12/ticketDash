@@ -9,15 +9,46 @@ const MOCK_USERS = {
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const isFetchingRef = useRef(false);
+
+  /**
+   * =========================
+   * FETCH CURRENT USER (/me)
+   * =========================
+   */
+  const fetchMe = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       const raw = localStorage.getItem('tiketku_auth');
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
     }
-  });
+  };
 
+  /**
+   * =========================
+   * INITIAL LOAD
+   * =========================
+   */
+  useEffect(() => {
+    fetchMe();
+    const onLogout = () => setUser(null);
+    window.addEventListener("auth:logout", onLogout);
+    return () => {
+      window.removeEventListener("auth:logout", onLogout);
+    };
+  }, []);
+
+  /**
+   * =========================
+   * LOGIN
+   * =========================
+   */
   const login = async (email, password) => {
     if (!email || !password) {
       throw new Error('Email dan password wajib diisi');
@@ -50,7 +81,8 @@ export function AuthProvider({ children }) {
       });
     }
 
-    throw new Error('Email atau password salah');
+    // broadcast ke tab lain
+    window.dispatchEvent(new Event("auth:logout"));
   };
 
   const persistUser = (u) => {
@@ -65,7 +97,16 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        login,
+        logout,
+        loading,
+        refetchMe: fetchMe,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -73,6 +114,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
   return ctx;
 }
