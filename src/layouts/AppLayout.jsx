@@ -15,7 +15,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { confirmLogout } from "@/lib/alert";
-import UserAvatarSkeleton from "@/components/common/UserAvatarSkeleton";
+
+const pageNames = {
+  '/dashboard': 'Dashboard',
+  '/events': 'Events',
+  '/event-admins': 'Event Admins',
+  '/users': 'Users',
+  '/settings': 'Settings',
+  '/profile': 'Profile',
+};
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,17 +36,52 @@ export function AppLayout() {
 
   const menu = user ? getMenuByRole(user.role) : [];
 
-  /**
-   * =========================
-   * ROUTE GUARD (CLEAN)
-   * =========================
-   */
-  const allowedPaths = menu.map((m) => m.href);
+  // Note: we intentionally do not persist navigation state to sessionStorage
+
+  // If the user manually navigates to a path that is not present in their menu,
+  // show NotFound to avoid revealing routes they shouldn't access.
+  const globalAllowedPaths = [
+  "/profile",
+  ];
+  const allowedPaths = [
+    ...menu.map((m) => m.href),
+    ...globalAllowedPaths,
+  ];
+
   const isAllowedPath = allowedPaths.some(
-    (p) =>
-      location.pathname === p ||
-      location.pathname.startsWith(p + "/")
+    (p) => location.pathname === p || location.pathname.startsWith(p + "/")
   );
+
+  const cameFromMenu = location.state?.fromMenu === true;
+  const cameFromLogin = location.state?.fromLogin === true;
+
+  // Detect a full page reload (user pressed refresh). When reloading an allowed
+  // route like `/dashboard`, allow showing the page even if `location.state`
+  // is lost. Manual URL edits will still show NotFound unless the navigation
+  // is a reload and the path is allowed.
+  let isReload = false;
+  try {
+    const nav = performance.getEntriesByType && performance.getEntriesByType('navigation')?.[0];
+    if (nav && nav.type === 'reload') isReload = true;
+    // fallback for older browsers
+    if (!isReload && performance?.navigation && performance.navigation.type === 1) isReload = true;
+  } catch (e) {
+    // ignore
+  }
+
+  // Also allow reload when the last recorded internal path matches the
+  // current pathname. This is a conservative sessionStorage fallback that
+  // only permits showing a page after the user previously navigated to it
+  // from inside the app (menu/login). It does not expose routes when the
+  // user manually typed a previously-unseen path.
+  let lastInternalMatch = false;
+  try {
+    lastInternalMatch = typeof window !== 'undefined' && sessionStorage.getItem('lastInternalPath') === location.pathname;
+  } catch (e) {
+    lastInternalMatch = false;
+  }
+
+  const allowedToShow = isAllowedPath && (cameFromMenu || cameFromLogin || isReload || lastInternalMatch);
 
   if (!isAllowedPath) {
     return <NotFound />;
@@ -162,59 +205,32 @@ export function AppLayout() {
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>{user?.name || 'User'}</DropdownMenuLabel>
+                    <div className="px-2 py-1 text-xs text-slate-400">
+                      {user?.role === 'SUPERADMIN' ? 'Super Admin' : 'Event Admin'}
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => { try { sessionStorage.setItem('lastInternalPath', '/profile'); } catch (e) {} navigate('/profile', { state: { fromMenu: true } }); }}>Profile</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="gap-2"
+                      onClick={async () => {
+                        const result = await confirmLogout();
 
+                        if (!result.isConfirmed) return;
 
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    <p className="font-semibold capitalize">
-                      {user?.name || "User"}
-                    </p>
-                  </DropdownMenuLabel>
+                        try {
+                          sessionStorage.removeItem("lastInternalPath");
+                        } catch (e) {}
 
-                  <div className="text-xs ">
-                    <p className="ps-3 text-slate-500 capitalize">
-                      {user?.role === "SUPERADMIN"
-                        ? "Super Admin"
-                        : "Event Admin"}
-                    </p>
-                  </div>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onClick={() =>
-                      navigate(
-                        user?.role === "SUPERADMIN"
-                          ? "/users"
-                          : "/settings"
-                      )
-                    }
-                  >
-                    Profile
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onClick={() => navigate("/settings")}
-                  >
-                    Settings
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    className="gap-2"
-                    onClick={async () => {
-                      const result = await confirmLogout();
-                      if (!result.isConfirmed) return;
-
-                      await logout();
-                      navigate("/login", { replace: true });
-                    }}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                        logout();
+                        navigate("/login");
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" /> Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <UserAvatarSkeleton />

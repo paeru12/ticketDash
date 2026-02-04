@@ -21,8 +21,17 @@ export const eventAdminMenu = [
   { name: 'Settings', href: '/settings', icon: 'Settings' },
 ];
 
+export const scanStaffMenu = [
+  { name: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
+  { name: 'Select Event', href: '/select-event', icon: 'CalendarCheck' },
+  { name: 'Scan History', href: '/scan-history', icon: 'History' },
+  { name: 'Scan Ticket', href: '/scan-ticket', icon: '' },
+  { name: 'Profile', href: '/profile', icon: 'User' },
+];
+
 export function getMenuByRole(role) {
   if (role === 'SUPERADMIN') return superadminMenu;
   if (role === 'EVENT_ADMIN') return eventAdminMenu;
+  if (role === 'SCAN_STAFF') return scanStaffMenu;
   return [];
 }

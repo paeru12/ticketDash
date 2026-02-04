@@ -26,11 +26,14 @@ import Reports from "./pages/eventadmin/Reports";
 import EventAdminOrders from "./pages/eventadmin/Orders";
 import EventAdminTickets from "./pages/eventadmin/Tickets";
 import EventAdminScanStaff from "./pages/eventadmin/ScanStaff";
-import EventAdminSettings from "./pages/eventadmin/Settings";
-
-// COMMON
+import EventAdminSettings from "./pages/superadmin/Settings";
+import ScanStaffScanTicket from "./pages/scanstaff/ScanQRCode";
+import ScanStaffScanHistory from "./pages/scanstaff/ScanHistory";
+import ScanStaffSelectEvent from "./pages/scanstaff/SelectEvent";
+import ScanStaffDashboard from "./pages/scanstaff/Dashboard";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +61,7 @@ const App = () => (
                       map={{
                         SUPERADMIN: <Dashboard />,
                         EVENT_ADMIN: <EventAdminDashboard />,
+                        SCAN_STAFF: <ScanStaffDashboard />,
                       }}
                     />
                   }
@@ -76,110 +80,55 @@ const App = () => (
                   }
                 />
 
-                {/* EVENT ADMIN ONLY */}
+                {/* Superadmin-only pages */}
+                <Route path="/event-admins" element={<RequireRole allowed={["SUPERADMIN"]}><EventAdmins /></RequireRole>} />
+                <Route path="/users" element={<RequireRole allowed={["SUPERADMIN"]}><Users /></RequireRole>} />
+                <Route path="/banner" element={<RequireRole allowed={["SUPERADMIN"]}><Banner /></RequireRole>} />
+                <Route path="/settings" element={<RoleRenderer map={{ SUPERADMIN: <Settings />, EVENT_ADMIN: <EventAdminSettings /> }} />} />
+                <Route path="/profile" element={<Profile />} />
+
+                {/* Event Admin-only pages */}
+                <Route path="/orders" element={<RequireRole allowed={["EVENT_ADMIN"]}><EventAdminOrders /></RequireRole>} />
+                <Route path="/tickets" element={<RequireRole allowed={["EVENT_ADMIN"]}><EventAdminTickets /></RequireRole>} />
+                <Route path="/scan-staff" element={<RequireRole allowed={["EVENT_ADMIN"]}><EventAdminScanStaff /></RequireRole>} />
+                
+                {/* SCAN STAFF */}
                 <Route
-                  path="/categories"
+                  path="/select-event"
                   element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <Categories />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/regions"
-                  element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <Regions />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/ticket-types"
-                  element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <TicketTypes />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <Reports />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/orders"
-                  element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <EventAdminOrders />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/tickets"
-                  element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <EventAdminTickets />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/scan-staff"
-                  element={
-                    <RequireRole allowed={["EVENT_ADMIN"]}>
-                      <EventAdminScanStaff />
+                    <RequireRole allowed={["SCAN_STAFF"]}>
+                      <ScanStaffSelectEvent />
                     </RequireRole>
                   }
                 />
 
-                {/* SUPERADMIN ONLY */}
                 <Route
-                  path="/event-admins"
-                  element={
-                    <RequireRole allowed={["SUPERADMIN"]}>
-                      <EventAdmins />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/users"
-                  element={
-                    <RequireRole allowed={["SUPERADMIN"]}>
-                      <Users />
-                    </RequireRole>
-                  }
-                />
-                <Route
-                  path="/banner"
-                  element={
-                    <RequireRole allowed={["SUPERADMIN"]}>
-                      <Banner />
-                    </RequireRole>
-                  }
+                  path="/scan-ticket"
+                  element={<RequireRole allowed={["SCAN_STAFF"]}><ScanStaffScanTicket /></RequireRole>}
                 />
 
-                {/* Settings (shared path) */}
                 <Route
-                  path="/settings"
+                  path="/scan-history"
                   element={
-                    <RoleRenderer
-                      map={{
-                        SUPERADMIN: <Settings />,
-                        EVENT_ADMIN: <EventAdminSettings />,
-                      }}
-                    />
+                    <RequireRole allowed={["SCAN_STAFF"]}>
+                      <ScanStaffScanHistory />
+                    </RequireRole>
                   }
                 />
               </Route>
             </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+              
+
+
+              {/* Login route */}
+              <Route path="/login" element={<Login />} />
+
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
