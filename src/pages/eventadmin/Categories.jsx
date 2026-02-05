@@ -153,7 +153,7 @@ export default function Categories() {
     if (!desc.trim()) newErrors.desc = "Deskripsi wajib diisi.";
     if (!keywords.trim()) newErrors.keywords = "Keywords wajib diisi.";
     if (!editingId && !imgFile)
-      newErrors.img = "Gambar wajib diisi.";
+      newErrors.image = "Gambar wajib diisi.";
 
     if (Object.keys(newErrors).length) {
       setErrors(newErrors);
@@ -380,15 +380,34 @@ export default function Categories() {
               onChange={(e) => setKeywords(e.target.value)}
             />
 
-            <Input type="file" accept="image/*" onChange={handleImageChange} />
-
-            {imgPreview && (
-              <img
-                src={imgPreview}
-                alt="preview"
-                className="h-32 object-contain"
-              />
-            )}
+            <div className="flex flex-col space-y-2">
+              <label className="text-sm font-medium text-slate-700">Icon Kategori *</label>
+              <label
+                className={`flex flex-col items-center justify-center h-full min-h-[250px] border-2 border-dashed rounded-xl cursor-pointer transition-all 
+                ${errors.image ? 'border-red-500 bg-red-50' : 'border-slate-300 hover:bg-slate-50'}`}
+              >
+                {imgPreview ? (
+                  <div className="relative w-1/2 h-1/2 p-2">
+                    <img src={imgPreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/20 transition-opacity rounded-lg">
+                      <p className="text-white text-xs font-semibold bg-black/50 px-2 py-1 rounded">Ganti Icon</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center p-4">
+                    <div className="mx-auto w-12 h-12 mb-3 text-slate-400 bg-slate-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-slate-500">Klik untuk upload icon</p>
+                    <p className="text-xs text-slate-400 mt-1">Format: JPG, PNG (Maks 2MB)</p>
+                  </div>
+                )}
+                <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+              </label>
+              {errors.image && <p className="text-xs text-red-500">{errors.image}</p>}
+            </div>
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={closeDialog}>

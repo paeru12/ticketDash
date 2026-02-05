@@ -9,6 +9,14 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("authToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // 🔁 AUTO REFRESH TOKEN (COOKIE BASED)
 api.interceptors.response.use(
   res => res,
@@ -21,7 +29,7 @@ api.interceptors.response.use(
           `${import.meta.env.VITE_API_URL}/auth/admin/refresh`,
           {},
           { withCredentials: true }
-        ); 
+        );
         return api(error.config);
       } catch {
         window.dispatchEvent(new Event("auth:logout"));

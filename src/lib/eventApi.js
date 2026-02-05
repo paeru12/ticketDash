@@ -13,6 +13,11 @@ export const getEvents = async ({ page, perPage, search }) => {
   };
 };
 
+export const getEvent = async (id) => {
+  const res = await api.get(`${route}/${id}`);
+  return res.data;
+};
+
 
 // CREATE
 export const createEvents = (formData) => {

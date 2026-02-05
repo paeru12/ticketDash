@@ -5,8 +5,9 @@ import RichTextEditor from "@/components/common/RichTextEditor";
 import TagInput from "../ui/tagsinput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getCreator } from "@/lib/creatorApi";
-import { getRegion } from "@/lib/regionApi";
+import { getProvinces, getRegencies } from "@/lib/regionApi";
 import { getCategory } from "@/lib/categoryApi";
+import DropdownSearch from "@/components/ui/DropdownSearch";
 
 export default function EventStepOne({
   data,
@@ -22,21 +23,20 @@ export default function EventStepOne({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  const [provinces, setProvinces] = useState([]);
+  const [regencies, setRegencies] = useState([]);
 
   useEffect(() => {
     async function fetchMasterData() {
       try {
         setLoadingMaster(true);
 
-        const [orgRes, regionRes, catRes] = await Promise.all([
+        const [orgRes, catRes] = await Promise.all([
           getCreator(),
-          getRegion(),
           getCategory(),
         ]);
 
-        // SESUAIKAN DENGAN RESPONSE API KAMU
         setOrganizers(orgRes.data?.data || orgRes.data || []);
-        setRegions(regionRes.data?.data || regionRes.data || []);
         setCategories(catRes.data?.data || catRes.data || []);
 
       } catch (err) {
@@ -47,11 +47,55 @@ export default function EventStepOne({
     }
 
     fetchMasterData();
+    loadProvinces();
   }, []);
 
+  // 1. Map province name to provinceCode when provinces are loaded
+  useEffect(() => {
+    if (isEdit && data.province && provinces.length > 0 && !data.provinceCode) {
+      const prov = provinces.find(p => p.name === data.province);
+      if (prov) {
+        onChange({ ...data, provinceCode: prov.code });
+      }
+    }
+  }, [isEdit, provinces, data.province, data.provinceCode]);
+
+  // 2. Load regencies whenever provinceCode is set (either from initial map or user selection)
+  useEffect(() => {
+    async function loadRegencies() {
+      if (data.provinceCode) {
+        try {
+          const res = await getRegencies(data.provinceCode);
+          const regList = res.data.data.data || [];
+          setRegencies(regList);
+
+          // 3. Map district name to regencyCode once regencies are loaded
+          if (isEdit && data.district && !data.regencyCode) {
+            const reg = regList.find(r => r.name === data.district);
+            if (reg) {
+              onChange({ ...data, regencyCode: reg.code });
+            }
+          }
+        } catch (err) {
+          console.error("Gagal load kabupaten", err);
+        }
+      }
+    }
+    loadRegencies();
+  }, [data.provinceCode, isEdit, data.district, data.regencyCode]);
+
+
+  async function loadProvinces() {
+    try {
+      const res = await getProvinces();
+      console.log(res);
+      setProvinces(res.data.data.data || []);
+    } catch (err) {
+      console.error("Gagal load provinsi", err);
+    }
+  }
 
   const [organizers, setOrganizers] = useState([]);
-  const [regions, setRegions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingMaster, setLoadingMaster] = useState(false);
 
@@ -60,7 +104,6 @@ export default function EventStepOne({
     name: useRef(null),
     creatorId: useRef(null),
     location: useRef(null),
-    region: useRef(null),
     category: useRef(null),
     status: useRef(null),
     startDate: useRef(null),
@@ -111,7 +154,6 @@ export default function EventStepOne({
       "name",
       "creatorId",
       "location",
-      "region",
       "category",
       "status",
       "startDate",
@@ -273,28 +315,50 @@ export default function EventStepOne({
             />
           </div>
 
-          <div ref={refs.region}>
-            <label className="text-sm font-medium">Region <span className="text-red-500">*</span></label>
-            <select
-              className={`w-full border rounded p-2 capitalize ${errorClass("region") || ""}`}
-              value={data.region || ""}
-              disabled={readOnly || loadingMaster}
-              onChange={(e) =>
-                !readOnly && onChange({ ...data, region: e.target.value })
-              }
-            >
-              <option value="">
-                {loadingMaster ? "Loading region..." : "Pilih Region"}
-              </option>
+          <DropdownSearch
+            label="Provinsi"
+            items={provinces}
+            value={data.provinceCode}
+            itemKey="code"
+            itemLabel="name"
+            buttonPlaceholder="Pilih Provinsi"
+            disabled={loadingMaster || readOnly}
+            onSelect={async (provCode) => {
+              const selected = provinces.find(p => p.code === provCode);
 
-              {regions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+              onChange({
+                ...data,
+                province: selected?.name || "",   // SIMPAN ke DB
+                provinceCode: provCode,           // untuk dropdown saja
+                district: "",                     // reset ketika ganti provinsi
+                regencyCode: ""
+              });
 
-          </div>
+              const res = await getRegencies(provCode);
+              setRegencies(res.data.data.data || []);
+            }}
+
+          />
+
+          <DropdownSearch
+            label="Kabupaten / Kota"
+            items={regencies}
+            value={data.regencyCode}
+            itemKey="code"
+            itemLabel="name"
+            buttonPlaceholder="Pilih Kabupaten/Kota"
+            disabled={!data.province || loadingMaster || readOnly}
+            onSelect={(regCode) => {
+              const selected = regencies.find(r => r.code === regCode);
+
+              onChange({
+                ...data,
+                district: selected?.name || "",    // SIMPAN ke DB
+                regencyCode: regCode               // untuk dropdown saja
+              });
+            }}
+
+          />
 
           <div ref={refs.category}>
             <label className="text-sm font-medium">Kategori <span className="text-red-500">*</span></label>

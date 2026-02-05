@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import ScanTicket from "@/components/scanstaff/ScanQRCode";
 
 /** ================= MOCK DATA ================= */
 const EVENT_GATE_LIST = [
@@ -34,18 +35,20 @@ const EVENT_GATE_LIST = [
 ];
 
 const SelectEvent = () => {
-  const navigate = useNavigate();
+  const [selectedEvent, setSelectedEvent] = React.useState(null);
 
   const handleSelect = (item) => {
-    navigate("/scan-staff/scan", {
-      state: {
-        eventId: item.eventId,
-        gateId: item.gateId,
-        eventName: item.eventName,
-        gateName: item.gateName,
-      },
-    });
+    setSelectedEvent(item);
   };
+
+  if (selectedEvent) {
+    return (
+      <ScanTicket
+        eventData={selectedEvent}
+        onBack={() => setSelectedEvent(null)}
+      />
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto">

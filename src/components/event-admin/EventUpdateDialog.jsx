@@ -17,6 +17,8 @@ export default function EventUpdateDialog({ event, onClose, onSuccess, openDialo
     region: event.region_id || "",
     category: event.kategori_id || "",
     location: event.location || "",
+    province: event.province || "",
+    district: event.district || "",
     mapUrl: event.map || "",
     startDate: event.date_start || null,
     endDate: event.date_end || null,
@@ -41,6 +43,9 @@ export default function EventUpdateDialog({ event, onClose, onSuccess, openDialo
       if (data.name) fd.append("name", data.name);
       if (data.creatorId) fd.append("creator_id", data.creatorId);
       if (data.region) fd.append("region_id", data.region);
+      // ADDED: Support new Province/District fields
+      if (data.province) fd.append("province", data.province);
+      if (data.district) fd.append("district", data.district);
       if (data.category) fd.append("kategori_id", data.category);
       if (data.location) fd.append("location", data.location);
       if (data.mapUrl) fd.append("map", data.mapUrl);

@@ -12,7 +12,6 @@ export const eventAdminMenu = [
   { name: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
   { name: 'Events', href: '/events', icon: 'Ticket' },
   { name: 'Categories', href: '/categories', icon: 'List' },
-  { name: 'Regions', href: '/regions', icon: 'MapPin' },
   { name: 'Orders', href: '/orders', icon: 'ShoppingCart' },
   { name: 'Tickets', href: '/tickets', icon: 'Ticket' },
   { name: 'Ticket Types', href: '/ticket-types', icon: 'Tag' },
@@ -25,8 +24,6 @@ export const scanStaffMenu = [
   { name: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
   { name: 'Select Event', href: '/select-event', icon: 'CalendarCheck' },
   { name: 'Scan History', href: '/scan-history', icon: 'History' },
-  { name: 'Scan Ticket', href: '/scan-ticket', icon: '' },
-  { name: 'Profile', href: '/profile', icon: 'User' },
 ];
 
 export function getMenuByRole(role) {

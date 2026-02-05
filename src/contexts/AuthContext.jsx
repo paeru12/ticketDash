@@ -1,12 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import api from "@/lib/axios";
 
 const AuthContext = createContext(null);
-
-const MOCK_USERS = {
-  SUPERADMIN: { email: 'superadmin@tiketku.id', password: 'superadmin' },
-  EVENT_ADMIN: { email: 'eventadmin@tiketku.id', password: 'eventadmin' },
-  SCAN_STAFF: { email: 'scanstaff@tiketku.id', password: 'scanstaff' },
-};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -23,10 +18,14 @@ export function AuthProvider({ children }) {
     isFetchingRef.current = true;
 
     try {
-      const raw = localStorage.getItem('tiketku_auth');
-      return raw ? JSON.parse(raw) : null;
+      const res = await api.get("/auth/admin/me");
+      res.data.user.role = res.data.user.roles?.[0];
+      setUser(res.data.user);
     } catch {
-      return null;
+      setUser(null);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -50,51 +49,50 @@ export function AuthProvider({ children }) {
    * =========================
    */
   const login = async (email, password) => {
-    if (!email || !password) {
-      throw new Error('Email dan password wajib diisi');
+    const res = await api.post("/auth/admin/login", {
+      email,
+      password,
+    });
+    // backend sudah set cookie
+
+    // Backup: Save token if available (for Bearer auth)
+    const token = res.data.token || res.data.accessToken;
+    if (token) {
+      localStorage.setItem("authToken", token);
     }
 
-    const lowerEmail = email.toLowerCase();
+    setUser({
+      ...res.data.user,
+      role: res.data.user.roles?.[0], // ⬅️ NORMALISASI
+    });
+    return res.data.user;
+  };
 
-    if (lowerEmail === MOCK_USERS.SUPERADMIN.email && password === MOCK_USERS.SUPERADMIN.password) {
-      return persistUser({
-        email,
-        role: 'SUPERADMIN',
-        name: 'Super Admin',
-      });
+  /**
+   * =========================
+   * LOGOUT (SILENT)
+   * =========================
+   */
+  const logout = async () => {
+    try {
+      await api.post("/auth/admin/logout");
+    } catch {
+      // ignore error
     }
 
-    if (lowerEmail === MOCK_USERS.EVENT_ADMIN.email && password === MOCK_USERS.EVENT_ADMIN.password) {
-      return persistUser({
-        email,
-        role: 'EVENT_ADMIN',
-        name: 'Event Admin',
-      });
-    }
-
-    if (lowerEmail === MOCK_USERS.SCAN_STAFF.email && password === MOCK_USERS.SCAN_STAFF.password) {
-      return persistUser({
-        email,
-        role: 'SCAN_STAFF',
-        name: 'Scan Staff',
-        assignedEvents: [], // nanti dari API
-      });
-    }
+    setUser(null);
+    localStorage.removeItem("authToken");
 
     // broadcast ke tab lain
     window.dispatchEvent(new Event("auth:logout"));
   };
 
-  const persistUser = (u) => {
-    setUser(u);
-    localStorage.setItem('tiketku_auth', JSON.stringify(u));
-    return u;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('tiketku_auth');
-  };
+  /**
+   * =========================
+   * DERIVED STATE
+   * =========================
+   */
+  const isAuthenticated = !!user;
 
   return (
     <AuthContext.Provider
