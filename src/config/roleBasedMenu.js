@@ -27,8 +27,9 @@ export const scanStaffMenu = [
 ];
 
 export function getMenuByRole(role) {
-  if (role === 'SUPERADMIN') return superadminMenu;
-  if (role === 'EVENT_ADMIN') return eventAdminMenu;
-  if (role === 'SCAN_STAFF') return scanStaffMenu;
+  const r = role?.toUpperCase();
+  if (r === 'SUPERADMIN') return superadminMenu;
+  if (r === 'PROMOTOR_EVENT_ADMIN') return eventAdminMenu;
+  if (r === 'SCAN_STAFF') return scanStaffMenu;
   return [];
 }

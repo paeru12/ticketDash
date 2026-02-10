@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import EventStepTwo from "@/components/event-admin/EventStepTwo";
 import {

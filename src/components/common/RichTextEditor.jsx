@@ -1,3 +1,5 @@
+"use client";
+
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -26,6 +28,7 @@ import {
 
 export default function RichTextEditor({ value = "", onChange }) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit,
 
@@ -99,14 +102,14 @@ export default function RichTextEditor({ value = "", onChange }) {
 
         <Divider />
 
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleBulletList().run()} 
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
           active={editor.isActive("bulletList")}>
           <List size={16} />
         </ToolbarButton>
 
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleOrderedList().run()} 
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
           active={editor.isActive("orderedList")}>
           <ListOrdered size={16} />
         </ToolbarButton>

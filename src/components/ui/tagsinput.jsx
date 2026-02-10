@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { X } from "lucide-react";
 
@@ -31,7 +33,7 @@ export default function TagInput({
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addKeyword(input);
-    }else if (e.key === 'Backspace' && !input && keywords.length > 0) {
+    } else if (e.key === 'Backspace' && !input && keywords.length > 0) {
       removeKeyword(keywords.length - 1);
     }
   };
@@ -40,10 +42,9 @@ export default function TagInput({
     <div
       className={`
         flex flex-wrap gap-2 p-2 rounded-lg border transition-all
-        ${
-          error
-            ? "border-red-500 ring-1 ring-red-300"
-            : "border-slate-300 focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent"
+        ${error
+          ? "border-red-500 ring-1 ring-red-300"
+          : "border-slate-300 focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent"
         }
         ${readOnly ? "bg-slate-50 cursor-not-allowed" : "bg-white"}
         ${keywords.length >= maxKeywords ? "bg-gray-50" : ""}

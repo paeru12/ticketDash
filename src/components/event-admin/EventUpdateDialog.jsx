@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import EventStepOne from "@/components/event-admin/EventStepOne";
 import { updateEvents } from "@/lib/eventApi";

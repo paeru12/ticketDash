@@ -1,3 +1,5 @@
+"use client";
+
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import api from "@/lib/axios";
 
@@ -20,8 +22,9 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.get("/auth/admin/me");
       res.data.user.role = res.data.user.roles?.[0];
+      console.log(res.data.user);
       setUser(res.data.user);
-    } catch {
+    } catch (err) {
       setUser(null);
     } finally {
       setLoading(false);
@@ -77,7 +80,6 @@ export function AuthProvider({ children }) {
     try {
       await api.post("/auth/admin/logout");
     } catch {
-      // ignore error
     }
 
     setUser(null);

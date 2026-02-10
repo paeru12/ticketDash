@@ -1,6 +1,8 @@
+"use client";
+
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import NotFound from '@/pages/NotFound';
+import NotFound from '/app/not-found';
 
 /**
  * Props:

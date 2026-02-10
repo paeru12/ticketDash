@@ -1,0 +1,18 @@
+"use client";
+
+import RoleRenderer from "@/components/common/RoleRenderer";
+import SuperAdminDashboard from "@/components/dashboard/SuperAdminDashboard";
+import EventAdminDashboard from "@/components/dashboard/EventAdminDashboard";
+import ScanStaffDashboard from "@/components/dashboard/ScanStaffDashboard";
+
+export default function DashboardPage() {
+  return (
+    <RoleRenderer
+      map={{
+        SUPERADMIN: <SuperAdminDashboard />,
+        PROMOTOR_EVENT_ADMIN: <EventAdminDashboard />,
+        SCAN_STAFF: <ScanStaffDashboard />,
+      }}
+    />
+  );
+}

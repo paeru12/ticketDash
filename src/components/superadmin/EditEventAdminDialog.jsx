@@ -1,3 +1,5 @@
+"use client";
+
 // EditEventAdminDialog.jsx
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -39,7 +41,7 @@ export function EditEventAdminDialog({ open, onOpenChange, admin, onSuccess }) {
         image: null,
       });
       // Set preview dari image URL yang sudah ada jika ada
-      setImgPreview(admin.imageUrl || null); 
+      setImgPreview(admin.imageUrl || null);
       setErrors({});
     }
   }, [admin, open]);
@@ -61,7 +63,7 @@ export function EditEventAdminDialog({ open, onOpenChange, admin, onSuccess }) {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email tidak valid';
     }
-    
+
     // Password hanya divalidasi JIKA user mengisi kolom password
     if (formData.password) {
       if (formData.password.length < 6) {
@@ -91,7 +93,7 @@ export function EditEventAdminDialog({ open, onOpenChange, admin, onSuccess }) {
           data.append(key, formData[key]);
         }
       });
-      
+
       await updateEventAdmin(admin.id, data);
       toast.success('Admin berhasil diperbarui');
       onOpenChange(false);
@@ -120,7 +122,7 @@ export function EditEventAdminDialog({ open, onOpenChange, admin, onSuccess }) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* KOLOM KIRI: UPLOAD FOTO */}
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-slate-700">Foto Profil</label>

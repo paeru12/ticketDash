@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import EventUpdateDialog from "./EventUpdateDialog";
 import TicketUpdateDialog from "./TicketUpdateDialog";
@@ -23,7 +25,7 @@ export default function EventActionDialog({
               <h2 className="text-lg font-semibold capitalize">
                 Update Event
               </h2>
-               <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={onClose}>
                 X
               </Button>
             </div>

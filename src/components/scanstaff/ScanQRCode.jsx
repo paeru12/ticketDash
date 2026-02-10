@@ -1,35 +1,38 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 export default function ScanTicket({ eventData, onBack }) {
-  const { state: locationState } = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  // Use props if available, otherwise implementation for route-based access
-  const state = eventData || locationState;
+  // Use props if available (embedded mode with onBack prop)
+  const state = eventData;
 
   // Custom navigation handler: if onBack prop exists (embedded mode), use it.
-  // Otherwise use navigate (route mode).
+  // Otherwise use router (route mode).
   const handleBack = () => {
     if (onBack) {
       onBack();
     } else {
-      navigate("/select-event");
+      router.push("/select-event");
     }
   };
 
   const scannerRef = useRef(null);
   const [isScanning, setIsScanning] = useState(true);
 
-  // If no state, redirect (or show error) - Only if NOT in embedded mode
+  // If no state, show error or redirect - Only if NOT in embedded mode
   useEffect(() => {
-    if (!state?.eventId && !eventData) {
+    if (!state?.eventId) {
       toast.error("Silakan pilih event terlebih dahulu");
-      navigate("/select-event");
+      if (!onBack) {
+        router.push("/select-event");
+      }
     }
-  }, [state, navigate, eventData]);
+  }, [state, router, onBack]);
 
   useEffect(() => {
     if (!state?.eventId) return;

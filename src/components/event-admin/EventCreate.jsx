@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import EventStepOne from "./EventStepOne";
 import EventStepTwo from "./EventStepTwo";

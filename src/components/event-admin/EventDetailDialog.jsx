@@ -1,3 +1,5 @@
+"use client";
+
 import { formatEventDateTime } from "@/utils/date";
 
 export default function EventDetailDialog({ event }) {
@@ -77,24 +79,24 @@ export default function EventDetailDialog({ event }) {
                             <p>{event.location}</p>
                             {event.map && (
                                 <a
-                                href={event.map}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sm text-blue-600 hover:underline"
+                                    href={event.map}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-sm text-blue-600 hover:underline"
                                 >
                                     Lihat Maps
                                 </a>
                             )}
                         </div>
-                            {event.layout_venue && (
-                                <div className="w-full flex justify-center items-center max-h-[30vh] overflow-hidden mb-4">
-                                    <img
-                                        src={event.layout_venue}
-                                        alt="Layout Venue"
-                                        className="w-full h-auto object-contain rounded-md border"
-                                    />
-                                </div>
-                            )}
+                        {event.layout_venue && (
+                            <div className="w-full flex justify-center items-center max-h-[30vh] overflow-hidden mb-4">
+                                <img
+                                    src={event.layout_venue}
+                                    alt="Layout Venue"
+                                    className="w-full h-auto object-contain rounded-md border"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
 

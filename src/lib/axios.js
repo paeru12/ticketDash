@@ -1,11 +1,11 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true, // 🔥 WAJIB
   headers: {
     "Content-Type": "application/json",
-    "x-api-key": import.meta.env.VITE_API_KEY,
+    "x-api-key": process.env.NEXT_PUBLIC_API_KEY,
   },
 });
 
@@ -26,7 +26,7 @@ api.interceptors.response.use(
 
       try {
         await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/admin/refresh`,
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/admin/refresh`,
           {},
           { withCredentials: true }
         );

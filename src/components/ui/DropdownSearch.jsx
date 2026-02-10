@@ -1,3 +1,5 @@
+"use client";
+
 // components/ui/DropdownSearch.js
 import { useState, useRef, useEffect } from "react";
 

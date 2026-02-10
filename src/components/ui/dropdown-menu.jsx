@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useRef, useState, useEffect } from 'react';
 
 const DropdownContext = createContext(null);

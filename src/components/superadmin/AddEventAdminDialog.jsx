@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,7 +66,7 @@ export function AddEventAdminDialog({ open, onOpenChange, onSuccess }) {
     try {
       const data = new FormData();
       Object.keys(formData).forEach((key) => data.append(key, formData[key]));
-      
+
       await createEventAdmin(data);
       toast.success('Admin berhasil ditambahkan');
       onOpenChange(false);
@@ -92,7 +94,7 @@ export function AddEventAdminDialog({ open, onOpenChange, onSuccess }) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* KOLOM KIRI: UPLOAD FOTO */}
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-slate-700">Foto Profil *</label>
