@@ -12,24 +12,24 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 function formatCurrency(value) {
-    if (value >= 1_000_000_000) {
-        return `Rp ${(value / 1_000_000_000).toFixed(1)}B`;
+    if (value >= 1000000000) {
+        return `Rp ${(value / 1000000000).toFixed(1)}B`;
     }
-    if (value >= 1_000_000) {
-        return `Rp ${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1000000) {
+        return `Rp ${(value / 1000000).toFixed(1)}M`;
     }
-    if (value >= 1_000) {
-        return `Rp ${(value / 1_000).toFixed(1)}K`;
+    if (value >= 1000) {
+        return `Rp ${(value / 1000).toFixed(1)}K`;
     }
     return `Rp ${value}`;
 }
 
 function formatNumber(value) {
-    if (value >= 1_000_000) {
-        return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1000000) {
+        return `${(value / 1000000).toFixed(1)}M`;
     }
-    if (value >= 1_000) {
-        return `${(value / 1_000).toFixed(1)}K`;
+    if (value >= 1000) {
+        return `${(value / 1000).toFixed(1)}K`;
     }
     return String(value);
 }
